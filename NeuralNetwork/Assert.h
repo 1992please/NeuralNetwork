@@ -14,7 +14,6 @@ static void reportAssertionFailure(const char* expr, const char* file, int line)
 	printf("%s\n %s\n %d\n", expr, file, line);
 }
 
-#define debugBreak() __asm { int 3 }
 // check the expression and fail if it is false
 #define ASSERT(expr) \
 	if (expr) { } \
@@ -22,7 +21,7 @@ static void reportAssertionFailure(const char* expr, const char* file, int line)
 	{ \
 	reportAssertionFailure(#expr, \
 	__FILE__, __LINE__); \
-	debugBreak(); \
+	  __debugbreak(); \
 	}
 #else
 #define ASSERT(expr) // evaluates to nothing

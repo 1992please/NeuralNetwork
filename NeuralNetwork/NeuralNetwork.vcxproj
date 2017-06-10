@@ -139,11 +139,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="NeuralNet.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="TrainingData.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Assert.h" />
+    <ClInclude Include="NeuralNet.h" />
     <ClInclude Include="TrainingData.h" />
     <ClInclude Include="Matrix.h" />
   </ItemGroup>

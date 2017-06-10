@@ -350,7 +350,7 @@ void showVectorVals(string label, vector<double> &v)
 	cout << endl;
 }
 
-int makeTrainingSamples()
+void makeTrainingSamples()
 {
 	// Random training sets for XOR -- two inputs and one output
 
@@ -368,7 +368,7 @@ int makeTrainingSamples()
 
 int main()
 {
-	TrainingData trainData("d:\\trainingData.txt");
+	TrainingData trainData("data/trainingData.txt");
 	//e.g., {3, 2, 1 }
 	vector<unsigned> topology;
 	//topology.push_back(3);
@@ -408,5 +408,7 @@ int main()
 	}
 
 	cout << endl << "Done" << endl;
+
+	getchar();
 
 }
