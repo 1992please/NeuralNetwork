@@ -90,12 +90,15 @@ void BackPropagation(FDataSet& DataSet, Mat<double>& Weight, double eta)
 
 TrainingOutput Train(TrainingData& Data)
 {
+	const double Weight_Max = 2;
+	const double Learning_Rate = .1;
+	const int epoch_max = 10000;
 	TrainingOutput Out;
-	Mat<double> Weights = InitialiseWeights(.5, Data.TrainingSet.inputs.ColsCount() + 1, Data.TrainingSet.outputs.ColsCount());
+	Mat<double> Weights = InitialiseWeights(Weight_Max, Data.TrainingSet.inputs.ColsCount() + 1, Data.TrainingSet.outputs.ColsCount());
 	uint16_t epoch_count = 1;
-	while (epoch_count < 2000)
+	while (epoch_count < epoch_max)
 	{
-		BackPropagation(Data.TrainingSet, Weights, 0.1);
+		BackPropagation(Data.TrainingSet, Weights, Learning_Rate);
 		NetError TrainingError = EvalNetworkError(Data.TrainingSet, Weights);
 		NetError ValidationError = EvalNetworkError(Data.ValidationSet, Weights);
 		NetError TestError = EvalNetworkError(Data.TestSet, Weights);
@@ -105,10 +108,11 @@ TrainingOutput Train(TrainingData& Data)
 			TrainingError.regression_error, TrainingError.classification_error,
 			TestError.regression_error, TestError.classification_error,
 			TestError.regression_error, TestError.classification_error);
-
-
-
 		epoch_count++;
 	}
+
+	FeedForwardOut NetOutput = FeedForward(Data.TestSet.inputs, Weights, Data.TestSet.bias);
+	NetOutput.Outputs.Show();
+
 	return Out;
 }
