@@ -3,7 +3,7 @@
 #include <algorithm>
 #include "TrainingData.h"
 
-double RandomValue(void) { return rand() / double(RAND_MAX); }
+static double RandomValue(void) { return rand() / double(RAND_MAX); }
 
 NetError EvalNetworkError(FDataSet& data, Mat<double>& Weight)
 {

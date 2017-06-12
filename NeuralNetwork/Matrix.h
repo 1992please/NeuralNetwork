@@ -96,12 +96,12 @@ public:
 		}
 	}
 
-	size_t RowsCount() const
+	inline size_t RowsCount() const
 	{
 		return nRows;
 	}
 
-	size_t ColsCount() const
+	inline size_t ColsCount() const
 	{
 		return nCols;
 	}
@@ -132,13 +132,22 @@ public:
 				M[i][j] = value;
 	}
 
-	Mat<T> Transposed()
+	inline Mat<T> Transposed()
 	{
 		Mat<T> mat(nCols, nRows);
 		for (size_t i = 0; i < nRows; i++)
 			for (size_t j = 0; j < nCols; j++)
 				mat[j][i] = M[i][j];
 
+		return mat;
+	}
+
+	inline Mat<T> Op(T(*Func)(double))
+	{
+		Mat<T> mat(nRows, nCols);
+		for (size_t i = 0; i < nRows; i++)
+			for (size_t j = 0; j < nCols; j++)
+				mat[i][j] = Func(M[i][j]);
 		return mat;
 	}
 
@@ -212,12 +221,45 @@ public:
 		return out;
 	}
 
+
+
 	inline Mat<T> operator*(const T s)
 	{
 		Mat<T> out(nRows, nCols);
 		for (size_t i = 0; i < nRows; i++)
 			for (size_t j = 0; j < nCols; j++)
 				out[i][j] = M[i][j] * s;
+
+		return out;
+	}
+
+	inline Mat<T> operator+(const T s)
+	{
+		Mat<T> out(nRows, nCols);
+		for (size_t i = 0; i < nRows; i++)
+			for (size_t j = 0; j < nCols; j++)
+				out[i][j] = M[i][j] + s;
+
+		return out;
+	}
+
+	inline Mat<T> operator-(const T s)
+	{
+		Mat<T> out(nRows, nCols);
+		for (size_t i = 0; i < nRows; i++)
+			for (size_t j = 0; j < nCols; j++)
+				out[i][j] = M[i][j] - s;
+
+		return out;
+	}
+
+	inline Mat<T> operator-()
+	{
+		Mat<T> out(nRows, nCols);
+
+		for (size_t i = 0; i < nRows; i++)
+			for (size_t j = 0; j < nCols; j++)
+				out[i][j] = -M[i][j];
 
 		return out;
 	}
@@ -276,11 +318,33 @@ public:
 	Mat<T> GetRow(size_t Index)
 	{
 		ASSERT(Index < nRows)
-		Mat<T> out(1, nCols);
-		for (int i = 0; i < nCols; i++)
+			Mat<T> out(1, nCols);
+		for (size_t i = 0; i < nCols; i++)
 		{
 			out[0][i] = M[Index][i];
 		}
+		return out;
+	}
+
+	Mat<T> GetRows(size_t from, size_t to = 0)
+	{
+		to = to ? to : nRows;
+		ASSERT(from < nRows && to <= nRows);
+		Mat<T> out(to - from, nCols);
+		for (size_t i = from; i < to; i++)
+			for (size_t j = 0; j < nCols; j++)
+				out[i - from][j] = M[i][j];
+		return out;
+	}
+
+	Mat<T> GetCols(size_t from, size_t to = 0)
+	{
+		to = to ? to : nCols;
+		ASSERT(from < nCols && to <= nCols);
+		Mat<T> out(nRows, to - from);
+		for (size_t i = 0; i < nRows; i++)
+			for (size_t j = from; j < to; j++)
+				out[i][j - from] = M[i][j];
 		return out;
 	}
 
@@ -332,6 +396,22 @@ public:
 		}
 	}
 
-	T* operator[](size_t row) const { return M[row]; }
+	inline T* operator[](size_t row) const { return M[row]; }
 };
 
+template<typename T>
+inline Mat<T> operator*(T const& s, Mat<T> rhs)
+{
+	return rhs * s;
+}
+
+template<typename T>
+inline Mat<T> operator-(T const& s, Mat<T> rhs)
+{
+	Mat<T> out(rhs.RowsCount(), rhs.ColsCount());
+	for (size_t i = 0; i < rhs.RowsCount(); i++)
+		for (size_t j = 0; j < rhs.ColsCount(); j++)
+			out[i][j] = s - rhs[i][j];
+
+	return out;
+}
