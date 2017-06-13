@@ -24,13 +24,13 @@
 void main()
 {
 	printf("hello");
-	Mat<double> Theta2 = GetMatrix("saved_data\\Theta2.dat", 10, 26);
-	Mat<double> Theta1 = GetMatrix("saved_data\\Theta1.dat", 25, 401);
-	Mat<double> X = GetMatrix("saved_data\\X.dat", 5000, 400);
-	Mat<double> y = GetMatrix("saved_data\\y.dat", 5000, 1);
+	//Mat<double> Theta1 = GetMatrix("test_data\\Theta1.dat", 5, 4);
+	//Mat<double> Theta2 = GetMatrix("test_data\\Theta2.dat", 3, 6);
+	Mat<double> X = GetMatrix("save_data\\X.dat", 5, 3);
+	Mat<double> y = GetMatrix("test_data\\y.dat", 5, 1);
 
-	FCostFunctionOut out = nnCostFunction(Theta1, Theta2, 10, X, y, 1);
-	//Train(TrainingData());
+	//FCostFunctionOut out = nnCostFunction(TrainingData());
+	Train(TrainingData());
 
 	getchar();
 }
