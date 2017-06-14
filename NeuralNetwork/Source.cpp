@@ -30,7 +30,13 @@ void main()
 	Mat<double> y = GetMatrix("test_data\\y.dat", 5, 1);
 
 	//FCostFunctionOut out = nnCostFunction(TrainingData());
-	Train(TrainingData());
+	TrainingData Data;
+	NNeuralNet NN(&Data);
+	NN.Train(10000);
+	Mat<double> aa = NN.Predict(Data.TestSet.inputs);
+	aa.Show();
+
+	printf("class error %f\t\n", NNeuralNet::CalcClassificationError(aa, Data.TestSet.outputs));
 
 	getchar();
 }

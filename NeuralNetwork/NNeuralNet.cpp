@@ -10,8 +10,16 @@ static inline double sigmoidGradient(const double In) { const double sig = sigmo
 static inline double square(double In) { return In * In; }
 
 
+NNeuralNet::NNeuralNet(TrainingData* _Data)
+{
+	X = _Data->TrainingSet.inputs;
+	Y = _Data->TrainingSet.outputs;
+	input_layer_size = X.ColsCount();
+	num_labels = Y.ColsCount();
+	hidden_layer_size = num_labels;
+}
 
-static double CalcClassificationError(std::vector<int>& class1, std::vector<int>& class2)
+double NNeuralNet::CalcClassificationError(std::vector<int>& class1, std::vector<int>& class2)
 {
 	ASSERT(class1.size() == class2.size());
 	double sum = 0;
@@ -23,7 +31,12 @@ static double CalcClassificationError(std::vector<int>& class1, std::vector<int>
 	return sum / class1.size();
 }
 
-static Mat<double> ConvertClassToOutput(Mat<double>& In, uint16_t NoOfLabels)
+double NNeuralNet::CalcClassificationError(Mat<double>& Output1, Mat<double>& Output2)
+{
+	return CalcClassificationError(FDataSet::ConvertOuputToClass(Output1), FDataSet::ConvertOuputToClass(Output1));
+}
+
+Mat<double> NNeuralNet::ConvertClassToOutput(Mat<double>& In, uint16_t NoOfLabels)
 {
 	Mat<double> Out(In.RowsCount(), NoOfLabels, (double)0);
 
@@ -35,7 +48,7 @@ static Mat<double> ConvertClassToOutput(Mat<double>& In, uint16_t NoOfLabels)
 	return Out;
 }
 
-Mat<double> RandInitializeWeights(uint16_t L_in, size_t L_out)
+Mat<double> NNeuralNet::RandInitializeWeights(uint16_t L_in, size_t L_out)
 {
 	Mat<double> Weights(L_out, L_in + 1);
 
@@ -52,20 +65,17 @@ Mat<double> RandInitializeWeights(uint16_t L_in, size_t L_out)
 	return Weights;
 }
 
-std::vector<int> predict(Mat<double>& Theta1, Mat<double>& Theta2, Mat<double>& X)
+Mat<double> NNeuralNet::Predict(Mat<double>& X)
 {
 	Mat<double> a2 = (Mat<double>(X.RowsCount(), 1, 1.0).HConCat(X) * Theta1.Transposed()).Op(sigmoid);
 	Mat<double> a3 = (Mat<double>(X.RowsCount(), 1, 1.0).HConCat(a2) * Theta2.Transposed()).Op(sigmoid);
-
-	a3.Show();
-	return FDataSet::ConvertOuputToClass(a3);
+	return a3;
 }
 
-FCostFunctionOut nnCostFunction(Mat<double>& Theta1, Mat<double>& Theta2, uint16_t num_labels, Mat<double>& X, Mat<double>& Y, double lambda)
+FCostFunctionOut NNeuralNet::nnCostFunction(double lambda)
 {
 	FCostFunctionOut Out;
 	const size_t m = X.RowsCount();
-	//Mat<double>Y = ConvertClassToOutput(Y, num_labels);
 
 	Mat<double> z2 = Mat<double>(m, 1, 1.0).HConCat(X) * Theta1.Transposed();
 	Mat<double> a2 = z2.Op(sigmoid);
@@ -93,30 +103,27 @@ FCostFunctionOut nnCostFunction(Mat<double>& Theta1, Mat<double>& Theta2, uint16
 }
 
 
-void Train(TrainingData& Data)
+double NNeuralNet::Train(const uint32_t epoch_max, const double Learning_Rate, const double lambda)
 {
-	uint16_t input_layer_size = 4;
-	uint16_t hidden_layer_size = 3;
-	uint16_t num_labels = 3;
-
-	const double Learning_Rate = .1;
-	const int epoch_max = 10000;
-	Mat<double> Theta1 = RandInitializeWeights(input_layer_size, hidden_layer_size);
-	Mat<double> Theta2 = RandInitializeWeights(hidden_layer_size, num_labels);
+	Theta1 = RandInitializeWeights(input_layer_size, hidden_layer_size);
+	Theta2 = RandInitializeWeights(hidden_layer_size, num_labels);
 
 	uint16_t epoch_count = 1;
 	while (epoch_count < epoch_max)
 	{
-		size_t RandomIndex = rand() % Data.TrainingSet.inputs.RowsCount();
-		FCostFunctionOut costOut = nnCostFunction(Theta1, Theta2, num_labels, Data.TrainingSet.inputs, Data.TrainingSet.outputs, 0);
+		FCostFunctionOut costOut = nnCostFunction(lambda);
 		Theta1 = Theta1 - Learning_Rate * costOut.Theta1_Grad * costOut.J;
 		Theta2 = Theta2 - Learning_Rate *  costOut.Theta2_Grad * costOut.J;
 		printf("epoch %d: %f\t\n", epoch_count, costOut.J);
 		epoch_count++;
 	}
-	std::vector<int> predOut = predict(Theta1, Theta2, Data.TestSet.inputs);
 
-	printf("class error %f\t\n", CalcClassificationError(predOut, Data.TestSet.classes));
-
+	return CalcTrainingClassificationError();
 	//Mat<double> Weights = RandInitializeWeights(Data.TrainingSet.inputs.ColsCount(), Data.TrainingSet.outputs.ColsCount());
+}
+
+double NNeuralNet::CalcTrainingClassificationError()
+{
+	Mat<double> Y_predicted = Predict(X);
+	return CalcClassificationError(FDataSet::ConvertOuputToClass(Y_predicted), FDataSet::ConvertOuputToClass(Y));
 }
