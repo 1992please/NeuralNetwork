@@ -9,10 +9,11 @@ static inline double sigmoid(const double In) { return 1.0 / (1.0 + exp(-In)); }
 static inline double sigmoidGradient(const double In) { const double sig = sigmoid(In); return sig *(1 - sig); }
 static inline double square(double In) { return In * In; }
 
+using namespace Eigen;
+
 NNetwork::NNetwork(MatrixXd& _X, MatrixXd&  _Y, double TestRatio)
 {
 	ASSERT(_X.rows() == _Y.rows());
-
 	// shuffle the x/y matrixes
 
 	PermutationMatrix<Dynamic, Dynamic> perm(_X.rows());
@@ -43,9 +44,7 @@ double NNetwork::CalcTrainingError()
 	if (Xtest.rows() > 0)
 	{
 		MatrixXd YPred = Predict(Xtest);
-		MatrixXd DebugOUt(Ytest.rows(), Xtest.cols() + Ytest.cols() + Ytest.cols());
-		DebugOUt  << Xtest, Ytest, YPred;
-		std::cout<< std::endl << "test debug" << std::endl << DebugOUt << std::endl;
+
 		return (YPred - Ytest).squaredNorm();
 	}
 	else
@@ -90,15 +89,13 @@ MatrixXd NNetwork::Predict(MatrixXd& _X)
 	MatrixXd Xb(_X.rows(), _X.cols() + 1);
 	Xb << MatrixXd::Ones(_X.rows(), 1), _X;
 
-	MatrixXd z2 = Xb * Theta1.transpose();
-	MatrixXd z2b(z2.rows(), z2.cols() + 1);
-	z2b << MatrixXd::Ones(z2.rows(), 1), z2;
+	MatrixXd a2 = (Xb * Theta1.transpose()).unaryExpr(&sigmoid);
 
-	MatrixXd a2 = z2.unaryExpr(&sigmoid);
 	MatrixXd a2b(a2.rows(), a2.cols() + 1);
 	a2b << MatrixXd::Ones(a2.rows(), 1), a2;
 
 	MatrixXd a3 = (a2b * Theta2.transpose()).unaryExpr(&sigmoid);
+
 	return a3;
 }
 
@@ -169,48 +166,170 @@ double NNetwork::Train(const uint64_t epoch_max, const double Learning_Rate, con
 }
 
 
+void NNetwork::Save(char* filePath)
+{
+	ASSERT(Theta1.rows() > 0 && Theta2.rows() > 0);
+	std::ofstream file(filePath);
+	if (file.is_open())
+	{
+		file << "# theta1_rows: " << Theta1.rows() << std::endl;
+		file << "# theta1_cols: " << Theta1.cols() << std::endl;
+		file << "# theta2_rows: " << Theta2.rows() << std::endl;
+		file << "# theta2_cols: " << Theta2.cols() << std::endl;
+		file << Theta1 << std::endl;
+		file << Theta2 << std::endl;
+	}
+	file.close();
+}
+
 MatrixXd NNetwork::GetMatrix(char*const filename)
 {
-	uint32_t Rows;
-	uint32_t Cols;
+	uint32_t Rows = 0;
+	uint32_t Cols = 0;
 
-	std::ifstream m_trainingDataFile;
-	m_trainingDataFile.open(filename);
-	ASSERT(!m_trainingDataFile.fail())
+	std::ifstream file;
+	file.open(filename);
+	ASSERT(!file.fail());
 
-		while (!m_trainingDataFile.eof())
+	while (!file.eof())
+	{
+		std::string line;
+		std::getline(file, line);
+		std::stringstream ss(line);
+
+		std::string tempStr;
+		ss >> tempStr;
+		if (tempStr.compare("#") == 0)
 		{
-			std::string line;
-			std::getline(m_trainingDataFile, line);
-			std::stringstream ss(line);
-
-			std::string tempStr;
 			ss >> tempStr;
-			if (tempStr.compare("#") == 0)
+			if (tempStr.compare("rows:") == 0)
 			{
-				ss >> tempStr;
-				if (tempStr.compare("rows:") == 0)
-				{
-					ss >> Rows;
-				}
-				else if (tempStr.compare("columns:") == 0)
-				{
-					ss >> Cols;
-					break;
-				}
+				ss >> Rows;
+				if (Rows && Cols) break;
+			}
+			else if (tempStr.compare("columns:") == 0)
+			{
+				ss >> Cols;
+				if (Rows && Cols) break;
 			}
 		}
+	}
 
 	MatrixXd Out(Rows, Cols);
 	std::string line;
 	for (uint32_t i = 0; i < Rows; i++)
 	{
-		std::getline(m_trainingDataFile, line);
+		std::getline(file, line);
 		std::stringstream ss(line);
 		for (uint16_t j = 0; j < Cols; j++)
 		{
 			ss >> Out(i, j);
 		}
 	}
+	file.close();
 	return Out;
+}
+
+FFNetwork::FFNetwork(char * const filename)
+{
+	uint64_t theta1_rows = 0;
+	uint64_t theta1_cols = 0;
+	uint64_t theta2_rows = 0;
+	uint64_t theta2_cols = 0;
+	std::ifstream file;
+	file.open(filename);
+	ASSERT(!file.fail());
+
+	while (!file.eof())
+	{
+		std::string line;
+		std::getline(file, line);
+		std::stringstream ss(line);
+
+		std::string tempStr;
+		ss >> tempStr;
+		if (tempStr.compare("#") == 0)
+		{
+			ss >> tempStr;
+			if (tempStr.compare("theta1_rows:") == 0)
+			{
+				ss >> theta1_rows;
+				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
+			}
+			else if (tempStr.compare("theta1_cols:") == 0)
+			{
+				ss >> theta1_cols;
+				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
+			}
+			else if (tempStr.compare("theta2_rows:") == 0)
+			{
+				ss >> theta2_rows;
+				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
+			}
+			else if (tempStr.compare("theta2_cols:") == 0)
+			{
+				ss >> theta2_cols;
+				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
+			}
+		}
+	}
+	Theta1 = MatrixXd(theta1_rows, theta1_cols);
+
+	for (uint32_t i = 0; i < theta1_rows; i++)
+	{
+		std::string line;
+		std::getline(file, line);
+		std::stringstream ss(line);
+		for (uint16_t j = 0; j < theta1_cols; j++)
+		{
+			ss >> Theta1(i, j);
+		}
+	}
+
+	Theta2= MatrixXd(theta2_rows, theta2_cols);
+	for (uint32_t i = 0; i < theta2_rows; i++)
+	{
+		std::string line;
+		std::getline(file, line);
+		std::stringstream ss(line);
+		for (uint16_t j = 0; j < theta2_cols; j++)
+		{
+			ss >> Theta2(i, j);
+		}
+	}
+
+	file.close();
+	Theta1.transposeInPlace();
+	Theta2.transposeInPlace();
+
+}
+
+
+RowVectorXd FFNetwork::Predict(RowVectorXd& _X)
+{
+	RowVectorXd Xb(_X.size() + 1);
+	Xb << RowVectorXd::Ones(1), _X;
+
+	RowVectorXd a2 = (Xb * Theta1).unaryExpr(&sigmoid);
+
+	RowVectorXd a2b(a2.size() + 1);
+	a2b << RowVectorXd::Ones(1), a2;
+
+	RowVectorXd a3 = (a2b * Theta2).unaryExpr(&sigmoid);
+	return a3;
+}
+
+MatrixXd FFNetwork::Predict(MatrixXd& _X)
+{
+	MatrixXd Xb(_X.rows(), _X.cols() + 1);
+	Xb << MatrixXd::Ones(_X.rows(), 1), _X;
+
+	MatrixXd a2 = (Xb * Theta1).unaryExpr(&sigmoid);
+
+	MatrixXd a2b(a2.rows(), a2.cols() + 1);
+	a2b << MatrixXd::Ones(a2.rows(), 1), a2;
+
+	MatrixXd a3 = (a2b * Theta2).unaryExpr(&sigmoid);
+
+	return a3;
 }
