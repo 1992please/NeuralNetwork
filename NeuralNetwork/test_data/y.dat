@@ -1,7 +1,12 @@
- 2
- 3
- 1
- 2
- 3
+# Created by Octave 4.2.1, Sun Jun 18 15:10:38 2017 GMT <unknown@unknown>
+# name: Y
+# type: matrix
+# rows: 5
+# columns: 4
+ 5 4 0 0
+ 3 0 0 0
+ 4 0 0 0
+ 3 0 0 0
+ 3 0 0 0
 
 

@@ -27,6 +27,9 @@
     <ClCompile Include="NNeuralNet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Recommender.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Matrix.h">
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="NNeuralNet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Recommender.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -141,6 +141,7 @@
   <ItemGroup>
     <ClCompile Include="NeuralNet.cpp" />
     <ClCompile Include="NNeuralNet.cpp" />
+    <ClCompile Include="Recommender.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="TrainingData.cpp" />
   </ItemGroup>
@@ -148,6 +149,7 @@
     <ClInclude Include="Assert.h" />
     <ClInclude Include="NNeuralNet.h" />
     <ClInclude Include="NeuralNet.h" />
+    <ClInclude Include="Recommender.h" />
     <ClInclude Include="TrainingData.h" />
     <ClInclude Include="Matrix.h" />
   </ItemGroup>

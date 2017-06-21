@@ -1,0 +1,12 @@
+# Created by Octave 4.2.1, Sun Jun 18 15:10:58 2017 GMT <unknown@unknown>
+# name: R
+# type: bool matrix
+# rows: 5
+# columns: 4
+ 1 1 0 0
+ 1 0 0 0
+ 1 0 0 0
+ 1 0 0 0
+ 1 0 0 0
+
+

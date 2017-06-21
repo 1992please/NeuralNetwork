@@ -44,6 +44,73 @@ void TrainingData::UpdateDataSet(FDataSet &InDataSet, char*const filename)
 	InDataSet.classes = FDataSet::ConvertOuputToClass(InDataSet.outputs);
 }
 
+Mat<double> TrainingData::GetMatrix(char*const filename)
+{
+	uint32_t Rows;
+	uint32_t Cols;
+
+	std::ifstream m_trainingDataFile;
+	m_trainingDataFile.open(filename);
+	if (m_trainingDataFile.fail())
+	{
+		return Mat<double>();
+	}
+	while (!m_trainingDataFile.eof())
+	{
+		std::string line;
+		std::getline(m_trainingDataFile, line);
+		std::stringstream ss(line);
+
+		std::string tempStr;
+		ss >> tempStr;
+		if (tempStr.compare("#") == 0)
+		{
+			ss >> tempStr;
+			if (tempStr.compare("rows:") == 0)
+			{
+				ss >> Rows;
+			}
+			else if (tempStr.compare("columns:") == 0)
+			{
+				ss >> Cols;
+				break;
+			}
+		}
+	}
+
+	Mat<double>Out(Rows, Cols);
+	std::string line;
+	for (uint32_t i = 0; i < Rows; i++)
+	{
+		std::getline(m_trainingDataFile, line);
+		std::stringstream ss(line);
+		for (uint16_t j = 0; j < Cols; j++)
+		{
+			ss >> Out[i][j];
+		}
+	}
+	return Out;
+}
+
+
+Mat<double> TrainingData::GetMatrix(char*const filename, uint16_t Rows, uint16_t Cols)
+{
+	Mat<double>Out(Rows, Cols);
+	std::ifstream m_trainingDataFile;
+	m_trainingDataFile.open(filename);
+	std::string line;
+	for (int i = 0; i < Rows; i++)
+	{
+		std::getline(m_trainingDataFile, line);
+		std::stringstream ss(line);
+		for (uint16_t j = 0; j < Cols; j++)
+		{
+			ss >> Out[i][j];
+		}
+	}
+	return Out;
+}
+
 std::vector<int> FDataSet::ConvertOuputToClass(Mat<double>& In)
 {
 	std::vector<int> out;

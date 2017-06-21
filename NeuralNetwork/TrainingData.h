@@ -31,6 +31,10 @@ public:
 	FDataSet TrainingSet;
 	FDataSet ValidationSet;
 	FDataSet TestSet;
+
+	static Mat<double> GetMatrix(char*const filename);
+	static Mat<double> GetMatrix(char*const filename, uint16_t Rows, uint16_t Cols);
+
 	// Returns the number of input values read from the file:
 private:
 	void UpdateDataSet(FDataSet &InDataSet, char*const filename);
