@@ -11,18 +11,22 @@ static inline double square(double In) { return In * In; }
 
 using namespace Eigen;
 
-NNetwork::NNetwork(MatrixXd& _X, MatrixXd&  _Y, double TestRatio)
+NNetwork::NNetwork(MatrixXd& _X, MatrixXd&  _Y, double PCA_Retained_Variance, double TestRatio)
 {
 	ASSERT(_X.rows() == _Y.rows());
 	// shuffle the x/y matrixes
+	const Eigen::Index m = _X.rows();
 
-	PermutationMatrix<Dynamic, Dynamic> perm(_X.rows());
+	MatrixXd XPCA = ApplyPCA(_X, PCA_Retained_Variance);
+
+	PermutationMatrix<Dynamic, Dynamic> perm(m);
 	perm.setIdentity();
 	std::random_shuffle(perm.indices().data(), perm.indices().data() + perm.indices().size());
-	const MatrixXd XFull = perm * _X;
+	const MatrixXd XFull = perm * XPCA;
 	const MatrixXd YFull = perm * _Y;
-	const int testSize = (int)(TestRatio * _X.rows());
-	const int trainSize = (int)(_X.rows() - testSize);
+	const int testSize = (int)(TestRatio * m);
+	const int trainSize = (int)(m - testSize);
+
 
 	X = XFull.topRows(trainSize);
 	Y = YFull.topRows(trainSize);
@@ -67,6 +71,27 @@ MatrixXd NNetwork::ConvertClassToOutput(MatrixXd& In, uint16_t NoOfLabels)
 	return Out;
 }
 
+FFeatureNormalizeOut NNetwork::FeatureNormalize(const MatrixXd &_X)
+{
+	FFeatureNormalizeOut Out;
+	Out.mu = _X.colwise().mean();
+	Out.X_norm = _X.rowwise() - Out.mu;
+	Out.sigma = (Out.X_norm.colwise().squaredNorm() / (Out.X_norm.rows() - 1)).cwiseSqrt();
+	Out.X_norm.array().rowwise() /= Out.sigma.array();
+	return Out;
+}
+
+FPCAOut NNetwork::PCA(const Eigen::MatrixXd & _X)
+{
+	FPCAOut Out;
+	MatrixXd sig = (_X.transpose() * _X) / _X.rows();
+
+	JacobiSVD<MatrixXd> svd(sig, ComputeThinU);
+	Out.U = svd.matrixU();
+	Out.S = svd.singularValues();
+	return Out;
+}
+
 MatrixXd NNetwork::RandInitializeWeights(uint64_t L_in, size_t L_out)
 {
 	MatrixXd Weights(L_out, L_in + 1);
@@ -98,7 +123,6 @@ MatrixXd NNetwork::Predict(MatrixXd& _X)
 
 	return a3;
 }
-
 
 FCostFunctionOut NNetwork::nnCostFunction(MatrixXd& _Theta1, MatrixXd& _Theta2, double lambda)
 {
@@ -145,6 +169,28 @@ FCostFunctionOut NNetwork::nnCostFunction(MatrixXd& _Theta1, MatrixXd& _Theta2, 
 	return Out;
 }
 
+Eigen::MatrixXd NNetwork::ApplyPCA(const Eigen::MatrixXd _X, const double VarianceRetained)
+{
+	FFeatureNormalizeOut NormOut = NNetwork::FeatureNormalize(_X);
+	Mu = NormOut.mu;
+	Sigma = NormOut.sigma;
+	if (VarianceRetained < 1)
+	{
+		uint16_t k_pca = 1;
+		FPCAOut PCAOut = NNetwork::PCA(NormOut.X_norm);
+		for (k_pca = 1; k_pca < PCAOut.U.cols(); k_pca++)
+		{
+			double VarRetCalc = PCAOut.S.topRows(k_pca).sum() / PCAOut.S.sum();
+			if (VarRetCalc >= VarianceRetained)
+				break;
+		}
+		U = PCAOut.U.leftCols(k_pca);
+		NormOut.X_norm *= U;
+	}
+
+
+	return NormOut.X_norm;
+}
 
 double NNetwork::Train(const uint64_t epoch_max, const double Learning_Rate, const double lambda)
 {
@@ -165,19 +211,17 @@ double NNetwork::Train(const uint64_t epoch_max, const double Learning_Rate, con
 	//Mat<double> Weights = RandInitializeWeights(Data.TrainingSet.inputs.ColsCount(), Data.TrainingSet.outputs.ColsCount());
 }
 
-
 void NNetwork::Save(char* filePath)
 {
 	ASSERT(Theta1.rows() > 0 && Theta2.rows() > 0);
 	std::ofstream file(filePath);
 	if (file.is_open())
 	{
-		file << "# theta1_rows: " << Theta1.rows() << std::endl;
-		file << "# theta1_cols: " << Theta1.cols() << std::endl;
-		file << "# theta2_rows: " << Theta2.rows() << std::endl;
-		file << "# theta2_cols: " << Theta2.cols() << std::endl;
-		file << Theta1 << std::endl;
-		file << Theta2 << std::endl;
+		NNetwork::SavetMatrix(Mu, file);
+		NNetwork::SavetMatrix(Sigma, file);
+		NNetwork::SavetMatrix(U, file);
+		NNetwork::SavetMatrix(Theta1, file);
+		NNetwork::SavetMatrix(Theta2, file);
 	}
 	file.close();
 }
@@ -205,12 +249,11 @@ MatrixXd NNetwork::GetMatrix(char*const filename)
 			if (tempStr.compare("rows:") == 0)
 			{
 				ss >> Rows;
-				if (Rows && Cols) break;
 			}
 			else if (tempStr.compare("columns:") == 0)
 			{
 				ss >> Cols;
-				if (Rows && Cols) break;
+				break;
 			}
 		}
 	}
@@ -230,80 +273,29 @@ MatrixXd NNetwork::GetMatrix(char*const filename)
 	return Out;
 }
 
+void NNetwork::SavetMatrix(const Eigen::MatrixXd& Mat, std::ofstream&  file)
+{
+	ASSERT(file.is_open());
+	file << "# rows: " << Mat.rows() << "\n# columns: " << Mat.cols() << std::endl;
+	file << Mat << std::endl;
+
+}
+
+/************************************FFNetwork**************************************/
 FFNetwork::FFNetwork(char * const filename)
 {
-	uint64_t theta1_rows = 0;
-	uint64_t theta1_cols = 0;
-	uint64_t theta2_rows = 0;
-	uint64_t theta2_cols = 0;
 	std::ifstream file;
 	file.open(filename);
 	ASSERT(!file.fail());
 
-	while (!file.eof())
-	{
-		std::string line;
-		std::getline(file, line);
-		std::stringstream ss(line);
-
-		std::string tempStr;
-		ss >> tempStr;
-		if (tempStr.compare("#") == 0)
-		{
-			ss >> tempStr;
-			if (tempStr.compare("theta1_rows:") == 0)
-			{
-				ss >> theta1_rows;
-				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
-			}
-			else if (tempStr.compare("theta1_cols:") == 0)
-			{
-				ss >> theta1_cols;
-				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
-			}
-			else if (tempStr.compare("theta2_rows:") == 0)
-			{
-				ss >> theta2_rows;
-				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
-			}
-			else if (tempStr.compare("theta2_cols:") == 0)
-			{
-				ss >> theta2_cols;
-				if (theta1_rows && theta1_cols && theta2_rows && theta2_cols) break;
-			}
-		}
-	}
-	Theta1 = MatrixXd(theta1_rows, theta1_cols);
-
-	for (uint32_t i = 0; i < theta1_rows; i++)
-	{
-		std::string line;
-		std::getline(file, line);
-		std::stringstream ss(line);
-		for (uint16_t j = 0; j < theta1_cols; j++)
-		{
-			ss >> Theta1(i, j);
-		}
-	}
-
-	Theta2= MatrixXd(theta2_rows, theta2_cols);
-	for (uint32_t i = 0; i < theta2_rows; i++)
-	{
-		std::string line;
-		std::getline(file, line);
-		std::stringstream ss(line);
-		for (uint16_t j = 0; j < theta2_cols; j++)
-		{
-			ss >> Theta2(i, j);
-		}
-	}
+	Mu = GetMatrix(file);
+	Sigma = GetMatrix(file);
+	U = GetMatrix(file);
+	Theta1 = GetMatrix(file).transpose();
+	Theta2 = GetMatrix(file).transpose();
 
 	file.close();
-	Theta1.transposeInPlace();
-	Theta2.transposeInPlace();
-
 }
-
 
 RowVectorXd FFNetwork::Predict(RowVectorXd& _X)
 {
@@ -319,8 +311,16 @@ RowVectorXd FFNetwork::Predict(RowVectorXd& _X)
 	return a3;
 }
 
-MatrixXd FFNetwork::Predict(MatrixXd& _X)
+MatrixXd FFNetwork::Predict(MatrixXd& _XIn)
 {
+	// PCA Part
+	MatrixXd _X = _XIn.rowwise() - Mu;
+	_X.array().rowwise() /= Sigma.array();
+	if (U.cols() != 0)
+	{
+		_X *= U;
+	}
+
 	MatrixXd Xb(_X.rows(), _X.cols() + 1);
 	Xb << MatrixXd::Ones(_X.rows(), 1), _X;
 
@@ -332,4 +332,48 @@ MatrixXd FFNetwork::Predict(MatrixXd& _X)
 	MatrixXd a3 = (a2b * Theta2).unaryExpr(&sigmoid);
 
 	return a3;
+}
+
+MatrixXd FFNetwork::GetMatrix(std::ifstream& file)
+{
+	uint32_t Rows = 0;
+	uint32_t Cols = 0;
+
+	ASSERT(file.is_open());
+
+	while (!file.eof())
+	{
+		std::string line;
+		std::getline(file, line);
+		std::stringstream ss(line);
+
+		std::string tempStr;
+		ss >> tempStr;
+		if (tempStr.compare("#") == 0)
+		{
+			ss >> tempStr;
+			if (tempStr.compare("rows:") == 0)
+			{
+				ss >> Rows;
+			}
+			else if (tempStr.compare("columns:") == 0)
+			{
+				ss >> Cols;
+				break;
+			}
+		}
+	}
+
+	MatrixXd Out(Rows, Cols);
+	std::string line;
+	for (uint32_t i = 0; i < Rows; i++)
+	{
+		std::getline(file, line);
+		std::stringstream ss(line);
+		for (uint16_t j = 0; j < Cols; j++)
+		{
+			ss >> Out(i, j);
+		}
+	}
+	return Out;
 }
