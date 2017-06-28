@@ -12,7 +12,7 @@ void test_train()
 
 	Eigen::MatrixXd Y =y ;
 	NNetwork Net(X, Y, 1);
-	cout << Net.Train(100000, .1, .1) << endl;
+	cout << Net.Train(100000, .1, 0) << endl;
 	Net.Save("data\\params.dat");
 
 }
@@ -44,7 +44,7 @@ void test_nnCost()
 
 void main()
 {
-	test_load();
+	test_train();
 	//cout << "Z = \n" << NormOut.X_norm << "\nX_rec = \n" << X_rec<<"\n error \n"<<K_error<< endl;
 	getchar();
 }

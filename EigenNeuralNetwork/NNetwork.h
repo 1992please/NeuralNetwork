@@ -6,6 +6,7 @@ struct FCostFunctionOut
 	double J;
 	Eigen::MatrixXd Theta1_Grad;
 	Eigen::MatrixXd Theta2_Grad;
+	Eigen::MatrixXd Theta3_Grad;
 };
 
 struct FFeatureNormalizeOut
@@ -36,9 +37,10 @@ private:
 
 	Eigen::MatrixXd Theta1;
 	Eigen::MatrixXd Theta2;
-	uint64_t input_layer_size;
-	uint64_t hidden_layer_size;
+	Eigen::MatrixXd Theta3;
+
 	uint64_t num_labels;
+	uint64_t num_samples;
 	bool bUsingPCA;
 
 
@@ -61,6 +63,7 @@ public:
 	void Save(char* filePath);
 
 	static FCostFunctionOut nnCostFunction(const Eigen::MatrixXd& _X, const Eigen::MatrixXd& _Y, const Eigen::MatrixXd& _Theta1, const  Eigen::MatrixXd& _Theta2, const double lambda);
+	static FCostFunctionOut nnCostFunction(const Eigen::MatrixXd& _X, const Eigen::MatrixXd& _Y, const Eigen::MatrixXd& _Theta1, const  Eigen::MatrixXd& _Theta2, const Eigen::MatrixXd& _Theta3, const double lambda);
 	static Eigen::MatrixXd ConvertClassToOutput(Eigen::MatrixXd& In, uint16_t NoOfLabels);
 	static Eigen::MatrixXd GetMatrix(char*const filename);
 

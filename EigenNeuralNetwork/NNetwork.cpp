@@ -34,9 +34,8 @@ NNetwork::NNetwork(MatrixXd& _X, MatrixXd&  _Y, double PCA_Retained_Variance, do
 	Xtest = XFull.bottomRows(testSize);
 	Ytest = YFull.bottomRows(testSize);
 
-	input_layer_size = X.cols();
 	num_labels = Y.cols();
-	hidden_layer_size = num_labels;
+	num_samples = X.rows();
 }
 
 NNetwork::~NNetwork()
@@ -49,6 +48,9 @@ double NNetwork::CalcTrainingError()
 	{
 		MatrixXd YPred = Predict(Xtest);
 
+		MatrixXd debugOut(YPred.rows(), Ytest.cols() * 2);
+		debugOut << Ytest, YPred;
+		std::cout << debugOut << std::endl;
 		return (YPred - Ytest).squaredNorm();
 	}
 	else
@@ -120,7 +122,13 @@ MatrixXd NNetwork::Predict(MatrixXd& _X)
 	a2b << MatrixXd::Ones(a2.rows(), 1), a2;
 
 	MatrixXd a3 = (a2b * Theta2.transpose()).unaryExpr(&sigmoid);
-
+	if (Theta3.cols() > 0)
+	{
+		MatrixXd a3b(a3.rows(), a3.cols() + 1);
+		a3b << MatrixXd::Ones(a3.rows(), 1), a3;
+		MatrixXd a4 = (a3b * Theta3.transpose()).unaryExpr(&sigmoid);
+		return a4;
+	}
 	return a3;
 }
 
@@ -132,8 +140,6 @@ FCostFunctionOut NNetwork::nnCostFunction(const Eigen::MatrixXd& _X, const Eigen
 	Xb << MatrixXd::Ones(_X.rows(), 1), _X;
 
 	MatrixXd z2 = Xb * _Theta1.transpose();
-	MatrixXd z2b(z2.rows(), z2.cols() + 1);
-	z2b << MatrixXd::Ones(z2.rows(), 1), z2;
 
 	MatrixXd a2 = z2.unaryExpr(&sigmoid);
 	MatrixXd a2b(a2.rows(), a2.cols() + 1);
@@ -146,14 +152,11 @@ FCostFunctionOut NNetwork::nnCostFunction(const Eigen::MatrixXd& _X, const Eigen
 			_Theta1.rightCols(_Theta1.cols() - 1).unaryExpr(&square).sum()
 			+ _Theta2.rightCols(_Theta2.cols() - 1).unaryExpr(&square).sum());
 
-	MatrixXd Theta1Grad = MatrixXd::Zero(_Theta1.rows(), _Theta1.cols());
-	MatrixXd Theta2Grad = MatrixXd::Zero(_Theta2.rows(), _Theta2.cols());
-
 	MatrixXd delta3 = a3.array() - _Y.array();
-	MatrixXd delta2 = (delta3 * _Theta2).array() * z2b.unaryExpr(&sigmoidGradient).array();
+	MatrixXd delta2 = (delta3 * _Theta2.rightCols(_Theta2.cols() - 1)).array() * z2.unaryExpr(&sigmoidGradient).array();
 
-	Theta2Grad = delta3.transpose()  * a2b;
-	Theta1Grad = delta2.rightCols(delta2.cols() - 1).transpose() * Xb;
+	MatrixXd Theta2Grad = delta3.transpose()  * a2b;
+	MatrixXd Theta1Grad = delta2.transpose() * Xb;
 
 	MatrixXd lamb1(_Theta1.rows(), _Theta1.cols());
 	MatrixXd lamb2(_Theta2.rows(), _Theta2.cols());
@@ -162,6 +165,59 @@ FCostFunctionOut NNetwork::nnCostFunction(const Eigen::MatrixXd& _X, const Eigen
 
 	Out.Theta1_Grad = Theta1Grad * (1.0 / m) + lamb1 * (lambda / m);
 	Out.Theta2_Grad = Theta2Grad * (1.0 / m) + lamb2 * (lambda / m);
+	return Out;
+}
+
+FCostFunctionOut NNetwork::nnCostFunction(const Eigen::MatrixXd & _X, const Eigen::MatrixXd & _Y, const Eigen::MatrixXd & _Theta1, const Eigen::MatrixXd & _Theta2, const Eigen::MatrixXd & _Theta3, const double lambda)
+{
+	FCostFunctionOut Out;
+	const size_t m = _X.rows();
+	MatrixXd Xb(m, _X.cols() + 1);
+	Xb << MatrixXd::Ones(_X.rows(), 1), _X;
+
+	MatrixXd z2 = Xb * _Theta1.transpose();
+
+	MatrixXd a2 = z2.unaryExpr(&sigmoid);
+	MatrixXd a2b(a2.rows(), a2.cols() + 1);
+	a2b << MatrixXd::Ones(a2.rows(), 1), a2;
+
+	MatrixXd z3 = a2b * _Theta2.transpose();
+
+	MatrixXd a3 = z3.unaryExpr(&sigmoid);
+	MatrixXd a3b(a3.rows(), a3.cols() + 1);
+	a3b << MatrixXd::Ones(a3.rows(), 1), a3;
+
+	MatrixXd a4 = (a3b * _Theta3.transpose()).unaryExpr(&sigmoid);
+
+	Out.J = (-_Y.array() * a4.array().log() - (1 - _Y.array()) * (1 - a4.array()).log()).sum() / m
+		+ lambda / (2 * m) * (
+			_Theta1.rightCols(_Theta1.cols() - 1).unaryExpr(&square).sum()
+			+ _Theta2.rightCols(_Theta2.cols() - 1).unaryExpr(&square).sum()
+			+ _Theta3.rightCols(_Theta3.cols() - 1).unaryExpr(&square).sum());
+
+	MatrixXd Theta1Grad = MatrixXd::Zero(_Theta1.rows(), _Theta1.cols());
+	MatrixXd Theta2Grad = MatrixXd::Zero(_Theta2.rows(), _Theta2.cols());
+	MatrixXd Theta3Grad = MatrixXd::Zero(_Theta3.rows(), _Theta3.cols());
+
+	MatrixXd delta4 = a4.array() - _Y.array();
+	MatrixXd delta3 = (delta4 * _Theta3.rightCols(_Theta3.cols() - 1)).array() * z3.unaryExpr(&sigmoidGradient).array();
+	MatrixXd delta2 = (delta3 * _Theta2.rightCols(_Theta2.cols() - 1)).array() * z2.unaryExpr(&sigmoidGradient).array();
+
+	
+	Theta3Grad = delta4.transpose()  * a3b;
+	Theta2Grad = delta3.transpose() * a2b;
+	Theta1Grad = delta2.transpose() * Xb;
+
+	MatrixXd lamb1(_Theta1.rows(), _Theta1.cols());
+	MatrixXd lamb2(_Theta2.rows(), _Theta2.cols());
+	MatrixXd lamb3(_Theta3.rows(), _Theta3.cols());
+	lamb1 << MatrixXd::Zero(_Theta1.rows(), 1), _Theta1.rightCols(_Theta1.cols() - 1);
+	lamb2 << MatrixXd::Zero(_Theta2.rows(), 1), _Theta2.rightCols(_Theta2.cols() - 1);
+	lamb3 << MatrixXd::Zero(_Theta3.rows(), 1), _Theta3.rightCols(_Theta3.cols() - 1);
+
+	Out.Theta1_Grad = Theta1Grad * (1.0 / m) + lamb1 * (lambda / m);
+	Out.Theta2_Grad = Theta2Grad * (1.0 / m) + lamb2 * (lambda / m);
+	Out.Theta3_Grad = Theta3Grad * (1.0 / m) + lamb3 * (lambda / m);
 	return Out;
 }
 
@@ -190,15 +246,19 @@ Eigen::MatrixXd NNetwork::ApplyPCA(const Eigen::MatrixXd _X, const double Varian
 
 double NNetwork::Train(const uint64_t epoch_max, const double Learning_Rate, const double lambda)
 {
-	Theta1 = RandInitializeWeights(input_layer_size, hidden_layer_size);
-	Theta2 = RandInitializeWeights(hidden_layer_size, num_labels);
+	uint64_t hidden_layer1_size = sqrt((double)num_samples *(num_labels + 2)) + 2 * sqrt((double)num_samples / (num_labels + 2));
+	uint64_t hidden_layer2_size =  num_labels * sqrt((double)num_samples / (num_labels + 2));
+	Theta1 = RandInitializeWeights(X.cols(), hidden_layer1_size);
+	Theta2 = RandInitializeWeights(hidden_layer1_size, hidden_layer2_size);
+	Theta3 = RandInitializeWeights(hidden_layer2_size, Y.cols());
 
 	uint64_t epoch_count = 1;
 	while (epoch_count < epoch_max)
 	{
-		FCostFunctionOut costOut = nnCostFunction(X, Y, Theta1, Theta2, lambda);
+		FCostFunctionOut costOut = nnCostFunction(X, Y, Theta1, Theta2, Theta3, lambda);
 		Theta1 = Theta1 - Learning_Rate * costOut.Theta1_Grad * costOut.J;
 		Theta2 = Theta2 - Learning_Rate *  costOut.Theta2_Grad * costOut.J;
+		Theta3 = Theta3 - Learning_Rate *  costOut.Theta3_Grad * costOut.J;
 		printf("epoch %d: %f\t\n", (int)epoch_count, costOut.J);
 		epoch_count++;
 	}
