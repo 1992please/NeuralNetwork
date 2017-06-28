@@ -42,7 +42,6 @@ private:
 	bool bUsingPCA;
 
 
-	FCostFunctionOut nnCostFunction(Eigen::MatrixXd& _Theta1, Eigen::MatrixXd& _Theta2, double lambda);
 	static FFeatureNormalizeOut FeatureNormalize(const Eigen::MatrixXd& _X);
 	static FPCAOut PCA(const Eigen::MatrixXd& _X);
 	static Eigen::MatrixXd RandInitializeWeights(uint64_t L_in, size_t L_out);
@@ -61,6 +60,7 @@ public:
 	Eigen::MatrixXd Predict(Eigen::MatrixXd& _XIn);
 	void Save(char* filePath);
 
+	static FCostFunctionOut nnCostFunction(const Eigen::MatrixXd& _X, const Eigen::MatrixXd& _Y, const Eigen::MatrixXd& _Theta1, const  Eigen::MatrixXd& _Theta2, const double lambda);
 	static Eigen::MatrixXd ConvertClassToOutput(Eigen::MatrixXd& In, uint16_t NoOfLabels);
 	static Eigen::MatrixXd GetMatrix(char*const filename);
 

@@ -29,6 +29,19 @@ void test_load()
 	std::cout << std::endl << "test debug" << std::endl << DebugOUt << std::endl;
 }
 
+void test_nnCost()
+{
+	Eigen::MatrixXd X = NNetwork::GetMatrix("data\\cost_function_test\\X.dat");
+	Eigen::MatrixXd Y = NNetwork::GetMatrix("data\\cost_function_test\\Y.dat");
+	Eigen::MatrixXd Theta1 = NNetwork::GetMatrix("data\\cost_function_test\\Theta1.dat");
+	Eigen::MatrixXd Theta2 = NNetwork::GetMatrix("data\\cost_function_test\\Theta2.dat");
+	FCostFunctionOut Out = NNetwork::nnCostFunction(X, Y, Theta1, Theta2, 3);
+
+	cout << Out.J << endl;
+	cout << Out.Theta1_Grad << endl;
+	cout << Out.Theta2_Grad << endl;
+}
+
 void main()
 {
 	test_load();

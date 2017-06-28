@@ -124,12 +124,12 @@ MatrixXd NNetwork::Predict(MatrixXd& _X)
 	return a3;
 }
 
-FCostFunctionOut NNetwork::nnCostFunction(MatrixXd& _Theta1, MatrixXd& _Theta2, double lambda)
+FCostFunctionOut NNetwork::nnCostFunction(const Eigen::MatrixXd& _X, const Eigen::MatrixXd& _Y, const MatrixXd& _Theta1, const MatrixXd& _Theta2, const double lambda)
 {
 	FCostFunctionOut Out;
-	const size_t m = X.rows();
-	MatrixXd Xb(m, X.cols() + 1);
-	Xb << MatrixXd::Ones(X.rows(), 1), X;
+	const size_t m = _X.rows();
+	MatrixXd Xb(m, _X.cols() + 1);
+	Xb << MatrixXd::Ones(_X.rows(), 1), _X;
 
 	MatrixXd z2 = Xb * _Theta1.transpose();
 	MatrixXd z2b(z2.rows(), z2.cols() + 1);
@@ -141,7 +141,7 @@ FCostFunctionOut NNetwork::nnCostFunction(MatrixXd& _Theta1, MatrixXd& _Theta2, 
 
 	MatrixXd a3 = (a2b * _Theta2.transpose()).unaryExpr(&sigmoid);
 
-	Out.J = (-Y.array() * a3.array().log() - (1 - Y.array()) * (1 - a3.array()).log()).sum() / m
+	Out.J = (-_Y.array() * a3.array().log() - (1 - _Y.array()) * (1 - a3.array()).log()).sum() / m
 		+ lambda / (2 * m) * (
 			_Theta1.rightCols(_Theta1.cols() - 1).unaryExpr(&square).sum()
 			+ _Theta2.rightCols(_Theta2.cols() - 1).unaryExpr(&square).sum());
@@ -149,15 +149,11 @@ FCostFunctionOut NNetwork::nnCostFunction(MatrixXd& _Theta1, MatrixXd& _Theta2, 
 	MatrixXd Theta1Grad = MatrixXd::Zero(_Theta1.rows(), _Theta1.cols());
 	MatrixXd Theta2Grad = MatrixXd::Zero(_Theta2.rows(), _Theta2.cols());
 
-	for (size_t i = 0; i < m; i++)
-	{
-		MatrixXd delta3 = a3.row(i) - Y.row(i);
-		MatrixXd delta2 = (_Theta2.transpose() * delta3.transpose()).array() * z2b.row(i).transpose().unaryExpr(&sigmoidGradient).array();
+	MatrixXd delta3 = a3.array() - _Y.array();
+	MatrixXd delta2 = (delta3 * _Theta2).array() * z2b.unaryExpr(&sigmoidGradient).array();
 
-		Theta2Grad = Theta2Grad + delta3.transpose()  * a2b.row(i);
-		Theta1Grad = Theta1Grad + delta2.bottomRows(delta2.rows() - 1) * Xb.row(i);
-
-	}
+	Theta2Grad = delta3.transpose()  * a2b;
+	Theta1Grad = delta2.rightCols(delta2.cols() - 1).transpose() * Xb;
 
 	MatrixXd lamb1(_Theta1.rows(), _Theta1.cols());
 	MatrixXd lamb2(_Theta2.rows(), _Theta2.cols());
@@ -200,7 +196,7 @@ double NNetwork::Train(const uint64_t epoch_max, const double Learning_Rate, con
 	uint64_t epoch_count = 1;
 	while (epoch_count < epoch_max)
 	{
-		FCostFunctionOut costOut = nnCostFunction(Theta1, Theta2, lambda);
+		FCostFunctionOut costOut = nnCostFunction(X, Y, Theta1, Theta2, lambda);
 		Theta1 = Theta1 - Learning_Rate * costOut.Theta1_Grad * costOut.J;
 		Theta2 = Theta2 - Learning_Rate *  costOut.Theta2_Grad * costOut.J;
 		printf("epoch %d: %f\t\n", (int)epoch_count, costOut.J);
