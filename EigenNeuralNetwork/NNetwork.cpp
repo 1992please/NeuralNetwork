@@ -22,6 +22,7 @@ NNetwork::NNetwork(MatrixXd& _X, MatrixXd&  _Y, double PCA_Retained_Variance, do
 	PermutationMatrix<Dynamic, Dynamic> perm(m);
 	perm.setIdentity();
 	std::random_shuffle(perm.indices().data(), perm.indices().data() + perm.indices().size());
+	std::random_shuffle(perm.indices().data(), perm.indices().data() + perm.indices().size());
 	const MatrixXd XFull = perm * XPCA;
 	const MatrixXd YFull = perm * _Y;
 	const int testSize = (int)(TestRatio * m);
@@ -246,8 +247,8 @@ Eigen::MatrixXd NNetwork::ApplyPCA(const Eigen::MatrixXd _X, const double Varian
 
 double NNetwork::Train(const uint64_t epoch_max, const double Learning_Rate, const double lambda)
 {
-	uint64_t hidden_layer1_size = sqrt((double)num_samples *(num_labels + 2)) + 2 * sqrt((double)num_samples / (num_labels + 2));
-	uint64_t hidden_layer2_size =  num_labels * sqrt((double)num_samples / (num_labels + 2));
+	uint64_t hidden_layer1_size = (uint64_t)(sqrt((double)num_samples *(num_labels + 2)) + 2 * sqrt((double)num_samples / (num_labels + 2)));
+	uint64_t hidden_layer2_size =  (uint64_t)(num_labels * sqrt((double)num_samples / (num_labels + 2)));
 	Theta1 = RandInitializeWeights(X.cols(), hidden_layer1_size);
 	Theta2 = RandInitializeWeights(hidden_layer1_size, hidden_layer2_size);
 	Theta3 = RandInitializeWeights(hidden_layer2_size, Y.cols());
@@ -278,6 +279,7 @@ void NNetwork::Save(char* filePath)
 		NNetwork::SavetMatrix(U, file);
 		NNetwork::SavetMatrix(Theta1, file);
 		NNetwork::SavetMatrix(Theta2, file);
+		NNetwork::SavetMatrix(Theta3, file);
 	}
 	file.close();
 }
@@ -349,12 +351,20 @@ FFNetwork::FFNetwork(char * const filename)
 	U = GetMatrix(file);
 	Theta1 = GetMatrix(file).transpose();
 	Theta2 = GetMatrix(file).transpose();
-
+	Theta3 = GetMatrix(file).transpose();
 	file.close();
 }
 
-RowVectorXd FFNetwork::Predict(RowVectorXd& _X)
+RowVectorXd FFNetwork::Predict(const RowVectorXd& _XIn)
 {
+	// PCA Part
+	RowVectorXd _X = _XIn.rowwise() - Mu;
+	_X.array().rowwise() /= Sigma.array();
+	if (U.cols() != 0)
+	{
+		_X *= U;
+	}
+
 	RowVectorXd Xb(_X.size() + 1);
 	Xb << RowVectorXd::Ones(1), _X;
 
@@ -364,10 +374,19 @@ RowVectorXd FFNetwork::Predict(RowVectorXd& _X)
 	a2b << RowVectorXd::Ones(1), a2;
 
 	RowVectorXd a3 = (a2b * Theta2).unaryExpr(&sigmoid);
+
+	if (Theta3.cols() > 0)
+	{
+		MatrixXd a3b(a3.rows(), a3.cols() + 1);
+		a3b << MatrixXd::Ones(a3.rows(), 1), a3;
+		MatrixXd a4 = (a3b * Theta3).unaryExpr(&sigmoid);
+		return a4;
+	}
+
 	return a3;
 }
 
-MatrixXd FFNetwork::Predict(MatrixXd& _XIn)
+MatrixXd FFNetwork::Predict(const MatrixXd& _XIn)
 {
 	// PCA Part
 	MatrixXd _X = _XIn.rowwise() - Mu;
@@ -386,7 +405,13 @@ MatrixXd FFNetwork::Predict(MatrixXd& _XIn)
 	a2b << MatrixXd::Ones(a2.rows(), 1), a2;
 
 	MatrixXd a3 = (a2b * Theta2).unaryExpr(&sigmoid);
-
+	if (Theta3.cols() > 0)
+	{
+		MatrixXd a3b(a3.rows(), a3.cols() + 1);
+		a3b << MatrixXd::Ones(a3.rows(), 1), a3;
+		MatrixXd a4 = (a3b * Theta3).unaryExpr(&sigmoid);
+		return a4;
+	}
 	return a3;
 }
 

@@ -79,10 +79,11 @@ private:
 	Eigen::MatrixXd U;
 	Eigen::MatrixXd Theta1;
 	Eigen::MatrixXd Theta2;
+	Eigen::MatrixXd Theta3;
 public:
 	FFNetwork(char* const filename);
-	Eigen::RowVectorXd Predict(Eigen::RowVectorXd& _X);
-	Eigen::MatrixXd Predict(Eigen::MatrixXd& _X);
+	Eigen::RowVectorXd Predict(const Eigen::RowVectorXd& _X);
+	Eigen::MatrixXd Predict(const Eigen::MatrixXd& _X);
 
 	static Eigen::MatrixXd GetMatrix(std::ifstream& file);
 };
